@@ -6,6 +6,13 @@ routing and reversing.
 
 Full documentation can be found here: http://django-subdomains.readthedocs.org/
 
+Amboss Customization
+--------------------
+
+Drop the SITE framework dependency and instead simplify the subdomain 
+extraction: just take the first part of the domain string and use that for the
+subdomain.
+
 Build Status
 ------------
 
