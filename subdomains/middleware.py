@@ -1,12 +1,9 @@
-import operator
 import logging
+import operator
 import re
 
 from django.conf import settings
 from django.utils.cache import patch_vary_headers
-
-from subdomains.utils import get_domain
-
 
 logger = logging.getLogger(__name__)
 lower = operator.methodcaller('lower')
@@ -14,34 +11,37 @@ lower = operator.methodcaller('lower')
 UNSET = object()
 
 
-class SubdomainMiddleware(object):
+try:
+    from django.utils.deprecation import MiddlewareMixin
+except ImportError:
+    MiddlewareMixin = object
+
+class SubdomainMiddleware(MiddlewareMixin):
     """
     A middleware class that adds a ``subdomain`` attribute to the current request.
     """
-    def get_domain_for_request(self, request):
-        """
-        Returns the domain that will be used to identify the subdomain part
-        for this request.
-        """
-        return get_domain()
-
     def process_request(self, request):
         """
         Adds a ``subdomain`` attribute to the ``request`` parameter.
+
+        Take the left most part of the URL and consider it the subdomain
         """
-        domain, host = map(lower,
-            (self.get_domain_for_request(request), request.get_host()))
 
-        pattern = r'^(?:(?P<subdomain>.*?)\.)?%s(?::.*)?$' % re.escape(domain)
-        matches = re.match(pattern, host)
-
-        if matches:
-            request.subdomain = matches.group('subdomain')
-        else:
+        host = request.get_host()
+        
+        if len(host.split('.')) < 3:
             request.subdomain = None
-            logger.warning('The host %s does not belong to the domain %s, '
-                'unable to identify the subdomain for this request',
-                request.get_host(), domain)
+        else:
+            pattern = r'^(?P<subdomain>[^\.]*)'
+            matches = re.match(pattern, host) 
+
+            if matches:
+                request.subdomain = matches.group('subdomain')
+            else:
+                request.subdomain = None
+                logger.warning('The host %s does not belong to the domain %s, '
+                    'unable to identify the subdomain for this request',
+                    request.get_host())
 
 
 class SubdomainURLRoutingMiddleware(SubdomainMiddleware):
